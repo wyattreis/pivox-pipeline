@@ -1,0 +1,22 @@
+import boto3
+from datetime import datetime
+
+from pipeline_functions import  las_filter_pipeline_dwnld, elevation_timeseries
+
+# Apply a filter to select files within a specific date range
+start_date = datetime(2024, 1, 25)
+end_date = datetime(2024, 6, 4)
+
+# Set the S3 base bucket and the pivox folder
+bucket_name = 'grid-dev-lidarscans'
+pivox_name = 'Engel-Pivox/Pivox-1/'
+
+# Initialize the S3 client
+s3_client = boto3.client('s3')
+
+# Procees the raw LAZ files from the S3 Bucket to ground points (.tif and .laz outputs)
+las_filter_pipeline_dwnld(bucket_name, pivox_name, s3_client, start_date, end_date)
+ 
+# # Create a dataframe of the elevations from the processed .tif and .laz files
+scan_elev_df= elevation_timeseries(bucket_name, pivox_name, s3_client)
+scan_elev_df.to_csv('scan_elev_df.csv', index=False)
