@@ -1,19 +1,42 @@
 {
     "pipeline":[
         {
-            "type":"filters.outlier"
+            "type": "readers.las", 
+            "filename": "20240702-2000-46.PIVOX1.ROT.laz",
+            "override_srs": "EPSG:32611"
         },
         {
-          "type":"filters.smrf",
-          "ignore":"Classification[7:7]",
-          "slope":0.2,
-          "window":16,
-          "threshold":0.45,
-          "scalar":1.2
+            "type": "filters.crop",
+            "bounds":"([-2.75,0],[2,5],[-7,3])" 
         },
         {
-            "type":"filters.expression",
-            "expression":"Classification == 2"
+            "type": "filters.assign",
+            "assignment":"Classification[:]=0",
+            "value": [
+            "ReturnNumber = 1 WHERE ReturnNumber < 1",
+            "NumberOfReturns = 1 WHERE NumberOfReturns < 1"
+            ]
+        },
+        {
+            "type": "filters.smrf",
+            "cell": 0.5,
+            "slope": 0.3,
+            "threshold": 0.05,
+            "window": 4
+        },
+        { 
+            "type":"filters.range",
+            "limits":"Classification[2:2]"
+        },
+        {
+            "type": "writers.las",
+            "filename": "20240702-2000-46_bareGround.laz"
+        },
+        {
+            "type": "writers.gdal",
+            "resolution": 0.01,
+            "output_type": "mean",
+            "filename": "20240702-2000-46_bareGround.tif"
         }
     ]
 }

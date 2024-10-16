@@ -329,11 +329,15 @@ def las_filter_pipeline_leveled(bucket_name, pivox_name, s3_client, start_date, 
 
         except Exception as e:
             print(f"Error processing file {filename}: {e}")
-        finally:
-            Path(local_file_path).unlink()
-            Path(out_las).unlink(missing_ok=True)
+        # finally:
+        #     # Path(local_file_path).unlink()
+        #     Path(raw_dir).unlink(missing_ok=True)
+        #     Path(results_dir).unlink(missing_ok=True)
 
-# Function to create a timeseries of gground heights from the sensor and standard deviation
+    # delete the tmp file with all contents
+    shutil.rmtree('/tmp/')
+
+# Function to create a timeseries of ground heights from the sensor and standard deviation
 def snowdepth_timeseries(bucket_name, pivox_name, s3_client, ground_tif):
     prefix_processed = f'{pivox_name}leveled-processed/'
     snowdepth_tif = f'{pivox_name}snowdepth-tif/'
@@ -396,11 +400,11 @@ def snowdepth_timeseries(bucket_name, pivox_name, s3_client, ground_tif):
 
                 # Calculate Snow Depth
                 dem_snowDepth = dem_surface_resampled - dem_ground
-                scan_elev[(date, time)]['laz_elev_mean'] = dem_snowDepth.mean(skipna=True).values.item()
-                scan_elev[(date, time)]['laz_elev_std'] = dem_snowDepth.std(skipna=True).values.item()
+                scan_elev[(date, time)]['tif_elev_mean'] = dem_snowDepth.mean(skipna=True).values.item()
+                scan_elev[(date, time)]['tif_elev_std'] = dem_snowDepth.std(skipna=True).values.item()
 
                 # Save snow depth to a temporary TIF file for uploading
-                snow_depth_tif = os.path.join(download_dir, f'{basename}_snow_depth.tif')
+                snow_depth_tif = os.path.join(download_dir, f'{basename}_sd.tif')
                 dem_snowDepth.rio.to_raster(snow_depth_tif)
                 
             # Upload the snow depth TIFs back to S3
@@ -412,6 +416,8 @@ def snowdepth_timeseries(bucket_name, pivox_name, s3_client, ground_tif):
         Path(local_file_path).unlink()
         if filename.endswith('.tif'):
             Path(snow_depth_tif).unlink()
+    
+    shutil.rmtree('/tmp/')
 
     # Create a DataFrame with the data
     scan_elev_df = pd.DataFrame(scan_elev.values())
