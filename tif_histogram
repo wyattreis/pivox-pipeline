@@ -1,0 +1,76 @@
+import rasterio
+import numpy as np
+import plotly.graph_objects as go
+import os
+
+raster_dir = r'C:/Users/RDCRLWKR/Documents/FileCloud/My Files/Active Projects/Snow Working Group/Pivox/Technical/Data/raw pyvox/'
+raster_files = ["20240128-1200-46.PIVOX1.ROT_processed_sd.tif", 
+                "20240406-2000-46.PIVOX1.ROT_processed_sd.tif", 
+                "20240702-2000-46.PIVOX1.ROT_processed_sd.tif"]
+
+traces = []
+buttons = []
+for i, raster_file in enumerate(raster_files):
+    with rasterio.open(f'{raster_dir}{raster_file}') as dataset:
+        # Extract the date part of the filename (the first 13 characters)
+        date_part = os.path.basename(raster_file)[:13]
+
+        # Read the raster data as a numpy array
+        elevation_data = dataset.read(1)
+
+        # Mask out nodata values (assuming nodata is represented as np.nan or a specific value)
+        elevation_data = np.ma.masked_equal(elevation_data, dataset.nodata)
+
+    # Flatten the array to 1D for histogram
+    elevation_data_flat = elevation_data.compressed()
+
+    # Create a trace for each raster's histogram
+    traces.append(go.Histogram(x=elevation_data_flat, 
+                               nbinsx=50, 
+                               name=date_part, 
+                               visible=False))
+    
+traces[0].visible = True
+
+# Create dropdown buttons for each trace
+for i, raster_file in enumerate(raster_files):
+    date_part = os.path.basename(raster_file)[:13]
+    buttons.append(
+        dict(
+            method='update',
+            label=date_part,
+            args=[{'visible': [j == i for j in range(len(raster_files))]},  # Set visibility
+                  {'title': f'Histogram of Raster Elevation: {date_part}'}]  # Update title
+        )
+    )
+
+# Create the figure with multiple traces (one for each raster)
+fig = go.Figure(data=traces)
+fig.update_layout(
+    title=f'Histogram of Snow Depth on: {traces[0].name}',  # Set the initial title
+    xaxis_title='Snow Depth (m)',
+    yaxis_title='Points',
+    title_font=dict(size=24, family='Arial'),
+    xaxis=dict(
+        title_font=dict(size=18,  color='black'),  # Set x-axis title color
+        tickfont=dict(size=16,  color='black')     # Set x-axis tick labels color
+    ),
+    yaxis=dict(
+        title_font=dict(size=18,  color='black'),  # Set y-axis title color
+        tickfont=dict(size=16,  color='black')    # Set y-axis tick labels color
+    ),
+    barmode='overlay',
+    updatemenus=[{
+        'buttons': buttons,
+        'direction': 'down',
+        'showactive': True,
+        'x': 0.0,
+        'xanchor': 'left',
+        'y': 1.0,
+        'yanchor': 'top',
+        'font': dict(color='black', size=14)
+    }]
+)
+
+# Show the plot
+fig.show()

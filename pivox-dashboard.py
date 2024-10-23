@@ -10,8 +10,10 @@
 # Updated:      October 2024
 # -------------------------------------------------------------------------------
 import streamlit as st
+import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 # -------------------------------------------------------------------------------
 # Import and plot Pivox data from Github Repo
@@ -26,8 +28,14 @@ fig_depth = px.line(pivoxData, x='datetime', y='tif_elev_mean', title='Mean Snow
 
 fig_depth.update_layout(
     title_font=dict(size=24, family='Arial'),  # Increase title font size
-    xaxis_title_font=dict(size=18),  # Increase x-axis label font size
-    yaxis_title_font=dict(size=18)   # Increase y-axis label font size
+    xaxis=dict(
+        title_font=dict(size=18,  color='black'),  # Set x-axis title color
+        tickfont=dict(size=16,  color='black')     # Set x-axis tick labels color
+    ),
+    yaxis=dict(
+        title_font=dict(size=18,  color='black'),  # Set y-axis title color
+        tickfont=dict(size=16,  color='black')    # Set y-axis tick labels color
+    )   
 )
 
 # Snow depth standard deviation timeseries
@@ -37,8 +45,132 @@ fig_std = px.line(pivoxData, x='datetime', y='tif_elev_std', title='Snow Depth S
 
 fig_std.update_layout(
     title_font=dict(size=24, family='Arial'),  # Increase title font size
-    xaxis_title_font=dict(size=18),  # Increase x-axis label font size
-    yaxis_title_font=dict(size=18)   # Increase y-axis label font size
+    xaxis=dict(
+        title_font=dict(size=18,  color='black'),  # Set x-axis title color
+        tickfont=dict(size=16,  color='black')     # Set x-axis tick labels color
+    ),
+    yaxis=dict(
+        title_font=dict(size=18,  color='black'),  # Set y-axis title color
+        tickfont=dict(size=16,  color='black')    # Set y-axis tick labels color
+    )  
+)
+
+# Load the data from .npy file
+data_dict = np.load(r'C:/Users/RDCRLWKR/Documents/FileCloud/My Files/Active Projects/Snow Working Group/Pivox/Technical/Data/elevation_data_all.npy', allow_pickle=True).item()
+
+filtered_dict = {key: values for key, values in data_dict.items() if key.endswith('_2000') or key.endswith('_2001')}
+
+fig = go.Figure()
+# Loop through the dictionary and add a trace for each entry
+for category, values in filtered_dict.items():
+    fig.add_trace(go.Histogram(
+        x=values,
+        name=category,
+        marker=dict(
+            color='lightblue',      # Set the bar color to light blue
+            line=dict(
+                color='black',      # Set the outline color to black
+                width=1             # Set the outline width
+            )
+        ),
+        nbinsx=100,
+        visible=False     # Set opacity for better visibility
+    ))
+
+fig.data[0].visible = True
+
+# Create buttons for each trace
+buttons = []
+for i, category in enumerate(filtered_dict.keys()):
+    date_str = category[:8]  # Get the date part
+    year, month, day = date_str[:4], date_str[4:6], date_str[6:8]
+    formatted_date = f"{month}/{day}/{year}"  # Format date as m/d/year
+
+    buttons.append(dict(
+        label=formatted_date,
+        method='update',
+        args=[{'visible': [j == i for j in range(len(filtered_dict))]},  # Toggle visibility
+               {'title': f'<b>Snow Depth Histogram for: {formatted_date}</b>'}]  # Update title
+    ))
+
+# Add buttons to the layout
+fig.update_layout(
+    title=f'Snow Depth Histogram for: {list(filtered_dict.keys())[0][:8]}',
+    xaxis_title='Snow Depth (m)',
+    yaxis_title='Points',
+    title_font=dict(size=24, family='Arial'),
+    xaxis=dict(
+        title_font=dict(size=18,  color='black'),  # Set x-axis title color
+        tickfont=dict(size=16,  color='black')     # Set x-axis tick labels color
+    ),
+    yaxis=dict(
+        title_font=dict(size=18,  color='black'),  # Set y-axis title color
+        tickfont=dict(size=16,  color='black')    # Set y-axis tick labels color
+    ),
+    barmode='overlay',
+    updatemenus=[{
+        'buttons': buttons,
+        'direction': 'down',
+        'showactive': True,
+        'x': 0.0,
+        'xanchor': 'left',
+        'y': 1.0,
+        'yanchor': 'top',
+        'font': dict(color='black', size=14)
+    }],
+    height=400
+)
+
+# Create the figure
+fig_comb = go.Figure()
+# Add the first line (Mean Snow Depth)
+fig_comb.add_trace(go.Scatter(
+    x=pivoxData['datetime'],
+    y=pivoxData['tif_elev_mean'],
+    name='Mean Snow Depth (m)',
+    line=dict(color='blue'),
+    mode='lines+markers',
+    yaxis='y'
+))
+
+# Add the second line (Snow Depth Standard Deviation)
+fig_comb.add_trace(go.Scatter(
+    x=pivoxData['datetime'],
+    y=pivoxData['tif_elev_std']*100,
+    name='Standard Deviation (cm)',
+    line=dict(color='red'),
+    mode='lines+markers',
+    yaxis='y2'
+))
+
+# Update the layout to add the second y-axis
+fig_comb.update_layout(
+    title='<b>Snow Depth Timeseries</b>',
+    title_font=dict(size=24, family='Arial'),
+    xaxis=dict(
+        title='',
+        title_font=dict(size=18, color='black'),
+        tickfont=dict(size=16, color='black')
+    ),
+    yaxis=dict(
+        title='Mean Snow Depth (m)',
+        title_font=dict(size=18, color='blue'),
+        tickfont=dict(size=16, color='black')
+    ),
+    yaxis2=dict(
+        title='Standard Deviation (cm)',
+        title_font=dict(size=18, color='red'),
+        tickfont=dict(size=16, color='black'),
+        overlaying='y',  # Overlay this axis on top of the first y-axis
+        side='right'     # Display the second y-axis on the right
+    ),
+    legend=dict(
+        x=0.0,
+        y=1.1,
+        bgcolor='rgba(255,255,255,0)',
+        bordercolor='rgba(0,0,0,0)'
+    ),
+    height=550
 )
 
 # -------------------------------------------------------------------------------
@@ -48,16 +180,23 @@ left_co, cent_co, right_co = st.columns([0.25, 0.5, 0.25])
 with cent_co:
     st.title('Freeman Tower Pivox Data Dashboard', anchor=False)
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3 = st.columns([0.55, 0.2, 0.25])
 with col1:
+    st.plotly_chart(fig_comb)
+
+with col2:
     st.markdown(
         "<h2 style='text-align: left; font-family: Arial; font-size: 24px;'>Pivox Data Table</h2>", 
         unsafe_allow_html=True
     )
-    st.dataframe(pivoxData)
-
-with col2:
-    st.plotly_chart(fig_depth)
+    st.dataframe(pivoxData, height=400)
 
 with col3:
-    st.plotly_chart(fig_std)
+    st.markdown(
+        "<h2 style='text-align: left; font-family: Arial; font-size: 24px;'>Optical Image: 7/2/2024</h2>", 
+        unsafe_allow_html=True
+    )
+    st.image(r'C:\Users\RDCRLWKR\Documents\FileCloud\My Files\Active Projects\Snow Working Group\Pivox\Technical\Data\raw pyvox\20240702-2000-34.PIVOX1.jpeg')
+
+st.plotly_chart(fig)
+

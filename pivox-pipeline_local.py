@@ -1,5 +1,6 @@
 import boto3
 from datetime import datetime
+import numpy as np
 
 from pipeline_functions import  las_filter_pipeline_leveled, snowdepth_timeseries
 
@@ -20,5 +21,7 @@ s3_client = boto3.client('s3')
 las_filter_pipeline_leveled(bucket_name, pivox_name, s3_client, start_date, end_date)
  
 # # # Create a dataframe of the elevations from the processed .tif and .laz files
-scan_elev_df = snowdepth_timeseries(bucket_name, pivox_name, s3_client, ground_tif)
+scan_elev_df, data_dict = snowdepth_timeseries(bucket_name, pivox_name, s3_client, ground_tif)
 scan_elev_df.to_csv('scan_snowdepth_df.csv', index=False)
+# Save the flattened data dictionary as a .npy file
+np.save(r'C:/Users/RDCRLWKR/Documents/FileCloud/My Files/Active Projects/Snow Working Group/Pivox/Technical/Data/elevation_data_all.npy', data_dict)

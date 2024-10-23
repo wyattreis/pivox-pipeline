@@ -362,6 +362,8 @@ def snowdepth_timeseries(bucket_name, pivox_name, s3_client, ground_tif):
     os.makedirs(download_dir, exist_ok=True)
 
     scan_elev = {}
+    data_dict = {} 
+
     for scan in processed_paths:
         filename = os.path.basename(scan)
         basename, ext = os.path.splitext(filename)
@@ -403,6 +405,10 @@ def snowdepth_timeseries(bucket_name, pivox_name, s3_client, ground_tif):
                 scan_elev[(date, time)]['tif_elev_mean'] = dem_snowDepth.mean(skipna=True).values.item()
                 scan_elev[(date, time)]['tif_elev_std'] = dem_snowDepth.std(skipna=True).values.item()
 
+                # Flatten the snow depth array and store in data_dict
+                elevation_data_flat = dem_snowDepth.values.flatten()  # Flatten the snow depth data
+                data_dict[f'{date}_{time}'] = elevation_data_flat
+
                 # Save snow depth to a temporary TIF file for uploading
                 snow_depth_tif = os.path.join(download_dir, f'{basename}_sd.tif')
                 dem_snowDepth.rio.to_raster(snow_depth_tif)
@@ -418,6 +424,8 @@ def snowdepth_timeseries(bucket_name, pivox_name, s3_client, ground_tif):
             Path(snow_depth_tif).unlink()
     
     shutil.rmtree('/tmp/')
+
+    
 
     # Create a DataFrame with the data
     scan_elev_df = pd.DataFrame(scan_elev.values())
@@ -436,4 +444,4 @@ def snowdepth_timeseries(bucket_name, pivox_name, s3_client, ground_tif):
     # except Exception as e:
     #     print(f"Error deleting download directory: {e}")
 
-    return scan_elev_df
+    return scan_elev_df, data_dict
