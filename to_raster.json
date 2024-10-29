@@ -1,0 +1,24 @@
+{
+    "pipeline":[
+        
+        {
+            "type": "readers.las", 
+            "filename": "20240620-1408-47.PIVOX2.VCKSBG.REG.laz"
+        },
+        {
+            "type": "filters.crop",
+            "bounds":"([2135040,2135180],[1020065,1020135],[0,200])" 
+        },
+        {
+            "type": "writers.las",
+            "filename": "CROPPED_20240620-1408.laz"
+        },
+        {
+            "type": "writers.gdal",
+            "gdaldriver":"GTiff",
+            "resolution": 0.01,
+            "output_type": "mean",
+            "filename": "CROPPED_20240620-1408.tif"
+        }
+    ]
+}

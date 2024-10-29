@@ -29,7 +29,6 @@ def rotation_matrix(s3_client,bucket_name, pivox_name, start_date, end_date):
 
     # Create a list of all CSV files in the folder, skip the first since the station wasn't in Boise
     csv_files = [obj['Key'] for obj in t_files['Contents'] if obj['Key'].endswith('.gz')][1:]
-    columns_to_keep = [1, 4, 9, 12]
     dataframes = []
     for csv in csv_files:
         obj = s3_client.get_object(Bucket=bucket_name, Key=csv)
@@ -75,7 +74,7 @@ def rotation_matrix(s3_client,bucket_name, pivox_name, start_date, end_date):
     # Determine the mean rotation angles in the X and Y during the POI
     X_mean = df_clean['X'].mean()
     Y_mean = df_clean['Y'].mean()
-    print(f'Mean PiVox rotation angles: X={X_mean}; Y={Y_mean}')
+    print(f'Mean Pivox rotation angles: X={X_mean}; Y={Y_mean}')
 
     # Convert the mean angles in degrees to radians for both the X and Y
     Xtheta_rad = math.radians(X_mean)
@@ -93,10 +92,10 @@ def rotation_matrix(s3_client,bucket_name, pivox_name, start_date, end_date):
     return Xmatrix, Ymatrix
 
 # Function to create and run a PDAL pipeline to extract the ground points
-def las_filter_pipeline_dwnld(bucket_name, pivox_name, s3_client, start_date, end_date):
+def las_filter_pipeline_dwnld(bucket_name, pivox_name, s3_client, start_date, end_date, Xmatrix, Ymatrix):
 
     # Set up sub directories within S3 bucket
-    prefix_scans = f'{pivox_name}leveled-laz/'
+    prefix_scans = f'{pivox_name}scans/' #levled-laz
     prefix_processed = f'{pivox_name}processed/'
 
     response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=pivox_name, Delimiter='/')
@@ -118,7 +117,7 @@ def las_filter_pipeline_dwnld(bucket_name, pivox_name, s3_client, start_date, en
     os.makedirs(raw_dir, exist_ok=True)
     os.makedirs(results_dir, exist_ok=True)
 
-    Xmatrix, Ymatrix = rotation_matrix(s3_client,bucket_name, pivox_name, start_date, end_date)
+    #Xmatrix, Ymatrix = rotation_matrix(s3_client,bucket_name, pivox_name, start_date, end_date)
 
     for scan in scans_filtered:
         filename = os.path.basename(scan)
@@ -138,6 +137,7 @@ def las_filter_pipeline_dwnld(bucket_name, pivox_name, s3_client, start_date, en
             basename = os.path.basename(scan)[:-7] # remove the .las.gz from file path name
             local_file_path = os.path.join(raw_dir, basename)
             out_las = os.path.join(results_dir, f'{basename}_processed.laz')
+            out_tif = os.path.join(results_dir, f'{basename}_processed.tif')
 
             obj = s3_client.get_object(Bucket=bucket_name, Key=scan)
             with gzip.GzipFile(fileobj=obj['Body']) as gzipfile:
@@ -152,26 +152,30 @@ def las_filter_pipeline_dwnld(bucket_name, pivox_name, s3_client, start_date, en
                 "filename": local_file_path,
                 "override_srs": "EPSG:32611"
             },
-            # {
-            #     "type": "filters.ferry",
-            #     "dimensions": "=>tempY"
-            # },
-            # {
-            #     "type": "filters.assign",
-            #     "value": [
-            #         "tempY=Y",
-            #         "Y=Z",
-            #         "Z=tempY"
-            #         ]
-            # },
-            # {
-            #     "type": "filters.transformation",
-            #     "matrix": Xmatrix
-            # },
-            # {
-            #     "type": "filters.transformation",
-            #     "matrix": Ymatrix
-            # },
+            {
+                "type": "filters.ferry",
+                "dimensions": "=>tempY"
+            },
+            {
+                "type": "filters.assign",
+                "value": [
+                    "tempY=Y",
+                    "Y=Z",
+                    "Z=tempY"
+                    ]
+            },
+            {
+                "type": "filters.transformation",
+                "matrix": Xmatrix
+            },
+            {
+                "type": "filters.transformation",
+                "matrix": Ymatrix
+            },
+            {
+                "type": "filters.crop",
+                "bounds":"([0,40],[-30,20],[-5,5])" 
+            },
             # {
             #     "type": "filters.assign",
             #     "assignment":"Classification[:]=0",
@@ -191,10 +195,15 @@ def las_filter_pipeline_dwnld(bucket_name, pivox_name, s3_client, start_date, en
             #     "type":"filters.range",
             #     "limits":"Classification[2:2]"
             # },
-
             {
                 "type": "writers.las",
                 "filename": out_las
+            },
+            {
+                "type": "writers.gdal",
+                "resolution": 0.01,
+                "output_type": "mean",
+                "filename": out_tif
             }
         ]
 
